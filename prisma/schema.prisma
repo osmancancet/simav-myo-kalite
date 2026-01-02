@@ -1,0 +1,175 @@
+// Prisma Schema - Simav MYO Kalite Yönetim Sistemi
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Akademik Dönem
+model Semester {
+  id        String   @id @default(cuid())
+  name      String   @unique // "2024-2025 Bahar"
+  year      String   // "2024-2025"
+  term      String   // "GUZ", "BAHAR"
+  isActive  Boolean  @default(false)
+  courses   Course[]
+  createdAt DateTime @default(now())
+}
+
+// Kullanıcılar (Hoca, Müdür, Müdür Yrd.)
+model User {
+  id             String          @id @default(cuid())
+  email          String          @unique
+  name           String?
+  role           String          @default("HOCA") // HOCA, MUDUR, MUDUR_YRD
+  courses        Course[]
+  deleteRequests DeleteRequest[] @relation("DeleteRequester")
+  notifications  Notification[]
+  events         AcademicEvent[] @relation("EventCreator")
+  activities     ActivityLog[]
+  loginHistory   LoginHistory[]
+}
+
+// Dersler
+model Course {
+  id           String          @id @default(cuid())
+  code         String          // BIL101 (not unique - same course can be in different semesters)
+  name         String          // Bilgisayar Programlama
+  instructorId String
+  instructor   User            @relation(fields: [instructorId], references: [id])
+  semesterId   String
+  semester     Semester        @relation(fields: [semesterId], references: [id])
+  exams        Exam[]
+  events       AcademicEvent[]
+  syllabus     Syllabus?
+  plos         CoursePLO[]
+  createdAt    DateTime        @default(now())
+
+  @@unique([code, semesterId]) // Same course code can't be duplicated in same semester
+}
+
+// Sınavlar (Her derste birden fazla sınav olabilir)
+model Exam {
+  id        String     @id @default(cuid())
+  name      String     // Vize, Final, Bütünleme, Quiz 1
+  semester  String?    // Dönem bilgisi (örn: "2024-2025 Güz")
+  courseId  String
+  course    Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  files     ExamFile[]
+  createdAt DateTime   @default(now())
+}
+
+// Sınav Dosyaları (Her sınav için En İyi, Orta, En Düşük)
+model ExamFile {
+  id            String         @id @default(cuid())
+  type          String         // BEST, AVERAGE, WORST
+  filename      String
+  path          String
+  grade         Int?           // Öğrencinin notu (0-100)
+  examId        String
+  exam          Exam           @relation(fields: [examId], references: [id], onDelete: Cascade)
+  uploadedAt    DateTime       @default(now())
+  deleteRequest DeleteRequest?
+}
+
+// Silme Talepleri
+model DeleteRequest {
+  id              String   @id @default(cuid())
+  reason          String
+  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  rejectionReason String?
+  fileId          String   @unique
+  file            ExamFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  requesterId     String
+  requester       User     @relation("DeleteRequester", fields: [requesterId], references: [id])
+  createdAt       DateTime @default(now())
+}
+
+// Bildirimler
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("INFO") // INFO, WARNING, SUCCESS, ERROR
+  read      Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+}
+
+// Akademik Takvim
+model AcademicEvent {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  type        String    // EXAM_DATE, DEADLINE, HOLIDAY, MEETING
+  startDate   DateTime
+  endDate     DateTime?
+  allDay      Boolean   @default(true)
+  courseId    String?
+  course      Course?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  createdById String
+  createdBy   User      @relation("EventCreator", fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+}
+
+// Ders İzlencesi
+model Syllabus {
+  id          String   @id @default(cuid())
+  courseId    String   @unique
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  objectives  String?  // JSON: Dersin amaçları
+  weeklyPlan  String?  // JSON: Haftalık konular
+  resources   String?  // JSON: Kaynaklar
+  evaluation  String?  // JSON: Değerlendirme kriterleri
+  fileUrl     String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+}
+
+// Program Çıktıları (PLO)
+model ProgramOutcome {
+  id          String      @id @default(cuid())
+  code        String      @unique // PÇ1, PÇ2..
+  description String
+  courses     CoursePLO[]
+  createdAt   DateTime    @default(now())
+}
+
+model CoursePLO {
+  id       String         @id @default(cuid())
+  courseId String
+  course   Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  ploId    String
+  plo      ProgramOutcome @relation(fields: [ploId], references: [id], onDelete: Cascade)
+  level    Int            @default(1) // 1-5 arası katkı düzeyi
+
+  @@unique([courseId, ploId])
+}
+
+// Aktivite Logu
+model ActivityLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action     String   // UPLOAD, DELETE, CREATE, UPDATE, LOGIN
+  entityType String   // COURSE, EXAM, FILE, USER, SEMESTER
+  entityId   String?
+  details    String?
+  createdAt  DateTime @default(now())
+}
+
+// Oturum Geçmişi
+model LoginHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+}
