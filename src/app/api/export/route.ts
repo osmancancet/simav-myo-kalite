@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
     const timestamp = new Date().toISOString().slice(0, 10)
     const fileName = `MYO_Arsiv_${timestamp}.zip`
 
-    return new NextResponse(zipBuffer, {
+    return new NextResponse(new Uint8Array(zipBuffer), {
         headers: {
             "Content-Type": "application/zip",
             "Content-Disposition": `attachment; filename="${fileName}"`,

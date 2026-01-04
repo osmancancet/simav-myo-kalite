@@ -22,28 +22,29 @@ export async function DELETE(req: NextRequest, { params }: Params) {
         where: { email: session.user.email }
     })
 
-    if (!adminUser || adminUser.role !== "ADMIN") {
+    if (!adminUser || !["MUDUR", "MUDUR_YRD"].includes(adminUser.role)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const { courseId } = await params
 
     try {
-        // Delete delete requests associated with files in this course
-        await prisma.deleteRequest.deleteMany({
-            where: {
-                file: {
-                    courseId: courseId
-                }
+        // Get all exams for this course
+        const exams = await prisma.exam.findMany({
+            where: { courseId },
+            include: { files: true }
+        })
+
+        // Delete delete requests for all files in exams
+        for (const exam of exams) {
+            for (const file of exam.files) {
+                await prisma.deleteRequest.deleteMany({
+                    where: { fileId: file.id }
+                })
             }
-        })
+        }
 
-        // Delete all files in this course
-        await prisma.archiveFile.deleteMany({
-            where: { courseId }
-        })
-
-        // Delete the course
+        // Delete the course (cascade will delete exams and files)
         await prisma.course.delete({ where: { id: courseId } })
 
         return NextResponse.json({ success: true })
@@ -52,3 +53,4 @@ export async function DELETE(req: NextRequest, { params }: Params) {
         return NextResponse.json({ error: "Delete failed" }, { status: 500 })
     }
 }
+

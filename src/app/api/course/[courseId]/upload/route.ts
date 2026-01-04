@@ -33,7 +33,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     // Verify instructor ownership
     const course = await prisma.course.findUnique({
         where: { id: courseId },
-        include: { instructor: true }
+        include: { instructor: true, semester: true }
     })
 
     if (!course) return NextResponse.json({ error: "Course not found" }, { status: 404 })
@@ -46,6 +46,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     const formData = await req.formData()
     const file = formData.get("file") as File
     const type = formData.get("type") as string // BEST, AVERAGE, WORST
+    const examId = formData.get("examId") as string
+    const examName = formData.get("examName") as string
+    const grade = formData.get("grade") as string
 
     if (!file) {
         return NextResponse.json({ error: "No file uploaded" }, { status: 400 })
@@ -62,16 +65,38 @@ export async function POST(req: NextRequest, { params }: Params) {
     try {
         const filePath = await saveFile(file, course.code) // Store by course code
 
-        const archiveFile = await prisma.archiveFile.create({
+        let targetExamId = examId
+
+        // If no examId provided, find or create a default exam
+        if (!targetExamId) {
+            const defaultExamName = examName || "Sınav"
+            let exam = await prisma.exam.findFirst({
+                where: { courseId: course.id, name: defaultExamName }
+            })
+
+            if (!exam) {
+                exam = await prisma.exam.create({
+                    data: {
+                        name: defaultExamName,
+                        courseId: course.id,
+                        semester: course.semester?.name
+                    }
+                })
+            }
+            targetExamId = exam.id
+        }
+
+        const examFile = await prisma.examFile.create({
             data: {
                 filename: file.name,
                 path: filePath,
                 type: type,
-                courseId: course.id,
+                grade: grade ? parseInt(grade) : null,
+                examId: targetExamId,
             }
         })
 
-        return NextResponse.json({ success: true, file: archiveFile })
+        return NextResponse.json({ success: true, file: examFile })
     } catch (error) {
         console.error("Upload error:", error)
         return NextResponse.json({ error: "Upload failed" }, { status: 500 })

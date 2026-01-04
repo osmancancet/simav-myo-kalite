@@ -46,22 +46,23 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     try {
         // First delete all courses associated with this user
         if (userToDelete.courses.length > 0) {
-            // Delete any archive files and delete requests associated with courses
+            // For each course, get exams and their files to delete delete requests
             for (const course of userToDelete.courses) {
-                // Delete delete requests
-                await prisma.deleteRequest.deleteMany({
-                    where: {
-                        file: {
-                            courseId: course.id
-                        }
+                const exams = await prisma.exam.findMany({
+                    where: { courseId: course.id },
+                    include: { files: true }
+                })
+
+                // Delete delete requests for each file
+                for (const exam of exams) {
+                    for (const file of exam.files) {
+                        await prisma.deleteRequest.deleteMany({
+                            where: { fileId: file.id }
+                        })
                     }
-                })
-                // Delete archive files
-                await prisma.archiveFile.deleteMany({
-                    where: { courseId: course.id }
-                })
+                }
             }
-            // Delete courses
+            // Delete courses (cascade will delete exams and files)
             await prisma.course.deleteMany({
                 where: { instructorId: userId }
             })

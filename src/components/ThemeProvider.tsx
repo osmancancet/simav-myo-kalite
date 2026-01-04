@@ -60,6 +60,7 @@ interface ThemeContextType {
     theme: Theme
     config: ThemeConfig
     setTheme: (theme: Theme) => void
+    toggleTheme: () => void
     availableThemes: { key: Theme; name: string }[]
 }
 
@@ -67,6 +68,7 @@ const defaultContext: ThemeContextType = {
     theme: "dark",
     config: themes.dark,
     setTheme: () => { },
+    toggleTheme: () => { },
     availableThemes: Object.entries(themes).map(([key, value]) => ({
         key: key as Theme,
         name: value.name
@@ -97,10 +99,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         name: value.name
     }))
 
+    const toggleTheme = () => {
+        const newTheme = theme === "dark" ? "light" : "dark"
+        setTheme(newTheme)
+    }
+
     const value = {
         theme: mounted ? theme : "dark",
         config: themes[mounted ? theme : "dark"],
         setTheme,
+        toggleTheme,
         availableThemes
     }
 
