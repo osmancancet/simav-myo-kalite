@@ -6,10 +6,14 @@ import { Input } from "@/components/ui/input"
 export const dynamic = "force-dynamic"
 
 export default async function FilesPage() {
-    const files = await prisma.archiveFile.findMany({
+    const files = await prisma.examFile.findMany({
         include: {
-            course: {
-                include: { instructor: true }
+            exam: {
+                include: {
+                    course: {
+                        include: { instructor: true }
+                    }
+                }
             }
         },
         orderBy: { uploadedAt: "desc" }
@@ -73,11 +77,11 @@ export default async function FilesPage() {
                                             </div>
                                         </td>
                                         <td className="py-4 px-4">
-                                            <span className="font-medium text-slate-900">{file.course.code}</span>
-                                            <p className="text-xs text-slate-500">{file.course.name}</p>
+                                            <span className="font-medium text-slate-900">{file.exam.course.code}</span>
+                                            <p className="text-xs text-slate-500">{file.exam.course.name}</p>
                                         </td>
                                         <td className="py-4 px-4 text-slate-600">
-                                            {file.course.instructor.name || file.course.instructor.email}
+                                            {file.exam.course.instructor.name || file.exam.course.instructor.email}
                                         </td>
                                         <td className="py-4 px-4">
                                             <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${getTypeColor(file.type)}`}>
