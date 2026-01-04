@@ -8,7 +8,12 @@ export default async function CoursesPage() {
         prisma.course.findMany({
             include: {
                 instructor: true,
-                files: true,
+                exams: {
+                    include: {
+                        files: true
+                    }
+                },
+                semester: true,
             },
             orderBy: { code: "asc" }
         }),

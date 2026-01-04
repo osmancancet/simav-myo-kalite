@@ -31,7 +31,8 @@ interface Course {
     code: string
     name: string
     instructor: { id: string; name: string | null; email: string }
-    files: { id: string }[]
+    exams: { id: string; files: { id: string }[] }[]
+    semester?: { id: string; name: string }
 }
 
 interface Instructor {
@@ -109,7 +110,7 @@ export function CourseManagement({ courses: initialCourses, instructors }: Cours
 
             const newCourse = await res.json()
             const instructor = instructors.find(i => i.id === instructorId)
-            setCourses([...courses, { ...newCourse, instructor: instructor || { id: "", name: null, email: "" }, files: [] }])
+            setCourses([...courses, { ...newCourse, instructor: instructor || { id: "", name: null, email: "" }, exams: [] }])
             setCode("")
             setName("")
             setInstructorId("")
@@ -273,7 +274,7 @@ export function CourseManagement({ courses: initialCourses, instructors }: Cours
                                 </div>
                                 <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-slate-100 text-slate-600">
                                     <FileText className="w-3 h-3" />
-                                    <span className="text-xs font-medium">{course.files.length}</span>
+                                    <span className="text-xs font-medium">{course.exams.reduce((acc, e) => acc + e.files.length, 0)}</span>
                                 </div>
                             </div>
                         </CardContent>
@@ -299,7 +300,7 @@ export function CourseManagement({ courses: initialCourses, instructors }: Cours
                         <AlertDialogDescription className="text-slate-600">
                             <strong>{courseToDelete?.code}</strong> dersini silmek istediğinize emin misiniz?
                             <br /><br />
-                            Bu işlem geri alınamaz ve derse ait <strong>{courseToDelete?.files.length || 0} dosya</strong> da silinecektir.
+                            Bu işlem geri alınamaz ve derse ait <strong>{courseToDelete?.exams.reduce((acc, e) => acc + e.files.length, 0) || 0} dosya</strong> da silinecektir.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
