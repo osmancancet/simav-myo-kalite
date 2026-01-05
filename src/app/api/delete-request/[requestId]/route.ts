@@ -77,34 +77,27 @@ export async function POST(req: NextRequest, { params }: Params) {
                 console.error("File delete error:", err)
             }
 
-            // Send success notification using raw query
-            await prisma.$executeRaw`
-                INSERT INTO Notification (id, userId, title, message, type, read, link, createdAt)
-                VALUES (
-                    ${`notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`},
-                    ${deleteRequest.requesterId},
-                    ${"Silme Talebi Onaylandı"},
-                    ${`"${deleteRequest.file.filename}" dosyası için gönderdiğiniz silme talebi onaylandı. Dosya sistemden silindi.`},
-                    ${"SUCCESS"},
-                    ${false},
-                    ${`/hoca/ders/${deleteRequest.file.exam.courseId}`},
-                    ${new Date().toISOString()}
-                )
-            `
+            // Send success notification
+            await prisma.notification.create({
+                data: {
+                    userId: deleteRequest.requesterId,
+                    title: "Silme Talebi Onaylandı",
+                    message: `"${deleteRequest.file.filename}" dosyası için gönderdiğiniz silme talebi onaylandı. Dosya sistemden silindi.`,
+                    type: "SUCCESS",
+                    link: `/hoca/ders/${deleteRequest.file.exam.courseId}`
+                }
+            })
 
             // Log the approval action
-            await prisma.$executeRaw`
-                INSERT INTO ActivityLog (id, userId, action, entityType, entityId, details, createdAt)
-                VALUES (
-                    ${`act_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`},
-                    ${user.id},
-                    ${"APPROVE_DELETE"},
-                    ${"FILE"},
-                    ${deleteRequest.fileId},
-                    ${`Silme talebi onaylandı: ${deleteRequest.file.filename} (${deleteRequest.reason})`},
-                    ${new Date().toISOString()}
-                )
-            `
+            await prisma.activityLog.create({
+                data: {
+                    userId: user.id,
+                    action: "APPROVE_DELETE",
+                    entityType: "FILE",
+                    entityId: deleteRequest.fileId,
+                    details: `Silme talebi onaylandı: ${deleteRequest.file.filename} (${deleteRequest.reason})`
+                }
+            })
 
             // Delete the examFile (cascade will delete DeleteRequest)
             await prisma.examFile.delete({
@@ -113,27 +106,25 @@ export async function POST(req: NextRequest, { params }: Params) {
 
             return NextResponse.json({ success: true, message: "Dosya silindi" })
         } else {
-            // Update status to rejected with reason using raw query
-            await prisma.$executeRaw`
-                UPDATE DeleteRequest
-                SET status = 'REJECTED', rejectionReason = ${rejectionReason}
-                WHERE id = ${requestId}
-            `
+            // Update status to rejected with reason
+            await prisma.deleteRequest.update({
+                where: { id: requestId },
+                data: {
+                    status: 'REJECTED',
+                    rejectionReason: rejectionReason
+                }
+            })
 
-            // Send rejection notification using raw query
-            await prisma.$executeRaw`
-                INSERT INTO Notification (id, userId, title, message, type, read, link, createdAt)
-                VALUES (
-                    ${`notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`},
-                    ${deleteRequest.requesterId},
-                    ${"Silme Talebi Reddedildi"},
-                    ${`"${deleteRequest.file.filename}" dosyası için gönderdiğiniz silme talebi reddedildi. Gerekçe: ${rejectionReason}`},
-                    ${"WARNING"},
-                    ${false},
-                    ${`/hoca/ders/${deleteRequest.file.exam.courseId}`},
-                    ${new Date().toISOString()}
-                )
-            `
+            // Send rejection notification
+            await prisma.notification.create({
+                data: {
+                    userId: deleteRequest.requesterId,
+                    title: "Silme Talebi Reddedildi",
+                    message: `"${deleteRequest.file.filename}" dosyası için gönderdiğiniz silme talebi reddedildi. Gerekçe: ${rejectionReason}`,
+                    type: "WARNING",
+                    link: `/hoca/ders/${deleteRequest.file.exam.courseId}`
+                }
+            })
 
             return NextResponse.json({ success: true, message: "Talep reddedildi" })
         }

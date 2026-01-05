@@ -7,7 +7,7 @@ const ADMIN_ROLES = ["MUDUR", "MUDUR_YRD"]
 
 // Allowed email domain and specific test emails
 const ALLOWED_DOMAIN = "@dpu.edu.tr"
-const TEST_EMAILS = ["oskitocan55@gmail.com"]
+const TEST_EMAILS = ["oskitocan55@gmail.com", "merginli@gmail.com"]
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
     session: {
@@ -70,6 +70,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                         data: {
                             email: user.email,
                             name: user.name || "Test Hoca",
+                            role: "HOCA"
+                        }
+                    })
+                    return true
+                }
+
+                // Auto-create merginli hoca
+                if (user.email === "merginli@gmail.com") {
+                    console.log("Creating merginli hoca user")
+                    await prisma.user.create({
+                        data: {
+                            email: user.email,
+                            name: user.name || "Merginli Hoca",
                             role: "HOCA"
                         }
                     })

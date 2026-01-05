@@ -95,18 +95,15 @@ export async function POST(req: NextRequest) {
 
         // Log the upload activity
         try {
-            await prisma.$executeRaw`
-                INSERT INTO ActivityLog (id, userId, action, entityType, entityId, details, createdAt)
-                VALUES (
-                    ${'upload_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)},
-                    ${user.id},
-                    'UPLOAD',
-                    'FILE',
-                    ${examFile.id},
-                    ${`${file.name} - ${exam.course.code} - ${exam.name}`},
-                    ${new Date().toISOString()}
-                )
-            `
+            await prisma.activityLog.create({
+                data: {
+                    userId: user.id,
+                    action: 'UPLOAD',
+                    entityType: 'FILE',
+                    entityId: examFile.id,
+                    details: `${file.name} - ${exam.course.code} - ${exam.name}`
+                }
+            })
         } catch (logErr) {
             console.error("Activity log error:", logErr)
         }
