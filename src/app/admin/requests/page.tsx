@@ -61,10 +61,15 @@ export default async function DeleteRequestsPage() {
     }))
 
     // Get approved count from ActivityLog
-    const approvedCountResult = await prisma.$queryRaw<[{ count: number }]>`
-        SELECT COUNT(*) as count FROM ActivityLog WHERE action = 'APPROVE_DELETE'
-    `
-    const approvedCount = Number(approvedCountResult[0]?.count || 0)
+    let approvedCount = 0
+    try {
+        const approvedCountResult = await prisma.activityLog.count({
+            where: { action: 'APPROVE_DELETE' }
+        })
+        approvedCount = approvedCountResult
+    } catch (e) {
+        console.error("Error counting approved deletes:", e)
+    }
 
     const pendingRequests = requests.filter(r => r.status === "PENDING")
     const rejectedRequests = requests.filter(r => r.status === "REJECTED")

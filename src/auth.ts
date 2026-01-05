@@ -83,18 +83,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
             // Log successful login
             try {
-                await prisma.$executeRaw`
-                    INSERT INTO ActivityLog (id, userId, action, entityType, entityId, details, createdAt)
-                    VALUES (
-                        ${'login_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)},
-                        ${dbUser.id},
-                        'LOGIN',
-                        'USER',
-                        ${dbUser.id},
-                        ${user.name || user.email},
-                        ${new Date().toISOString()}
-                    )
-                `
+                await prisma.activityLog.create({
+                    data: {
+                        userId: dbUser.id,
+                        action: 'LOGIN',
+                        entityType: 'USER',
+                        entityId: dbUser.id,
+                        details: user.name || user.email || ''
+                    }
+                })
             } catch (err) {
                 console.error("Login activity log error:", err)
             }

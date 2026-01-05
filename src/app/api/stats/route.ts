@@ -41,17 +41,22 @@ export async function GET() {
         WORST: filesByType.find(f => f.type === 'WORST')?._count.type || 0
     }
 
-    // Get monthly upload stats (last 6 months) using raw query
+    // Get monthly upload stats (last 6 months) - PostgreSQL compatible
     const sixMonthsAgo = new Date()
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
-
-    const monthlyUploads = await prisma.$queryRaw<{ month: string, count: number }[]>`
-        SELECT strftime('%Y-%m', uploadedAt) as month, COUNT(*) as count
-        FROM ExamFile
-        WHERE uploadedAt >= ${sixMonthsAgo.toISOString()}
-        GROUP BY strftime('%Y-%m', uploadedAt)
-        ORDER BY month ASC
-    `
+    let monthlyUploads: { month: string, count: number }[] = []
+    try {
+        const rawUploads = await prisma.$queryRaw<{ month: string, count: bigint }[]>`
+            SELECT to_char("uploadedAt", 'YYYY-MM') as month, COUNT(*) as count
+            FROM "ExamFile"
+            WHERE "uploadedAt" >= ${sixMonthsAgo}
+            GROUP BY to_char("uploadedAt", 'YYYY-MM')
+            ORDER BY month ASC
+        `
+        monthlyUploads = rawUploads.map(r => ({ month: r.month, count: Number(r.count) }))
+    } catch (e) {
+        console.error("Error getting monthly uploads:", e)
+    }
 
     // Get completion rate
     const examsWithFiles = await prisma.exam.findMany({
