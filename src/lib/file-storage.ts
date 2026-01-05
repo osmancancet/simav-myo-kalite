@@ -1,9 +1,4 @@
-import fs from "fs"
-import path from "path"
-import { pipeline } from "stream"
-import { promisify } from "util"
-
-const pump = promisify(pipeline)
+import { put, del } from "@vercel/blob"
 
 // Turkish character transliteration map
 const turkishCharMap: { [key: string]: string } = {
@@ -24,21 +19,23 @@ function sanitizeFileName(fileName: string): string {
 }
 
 export async function saveFile(file: File, folder: string): Promise<string> {
-    const uploadsDir = path.join(process.cwd(), "uploads", folder)
-
-    if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true })
-    }
-
     const timestamp = Date.now()
-    const fileName = `${timestamp}-${sanitizeFileName(file.name)}`
-    const filePath = path.join(uploadsDir, fileName)
+    const fileName = `${folder}/${timestamp}-${sanitizeFileName(file.name)}`
 
-    const arrayBuffer = await file.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
+    // Upload to Vercel Blob
+    const blob = await put(fileName, file, {
+        access: 'public',
+        addRandomSuffix: false
+    })
 
-    await fs.promises.writeFile(filePath, buffer)
+    // Return the blob URL
+    return blob.url
+}
 
-    // Return relative path for storage
-    return path.join("uploads", folder, fileName)
+export async function deleteFile(url: string): Promise<void> {
+    try {
+        await del(url)
+    } catch (error) {
+        console.error("Error deleting file from blob:", error)
+    }
 }
